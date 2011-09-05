@@ -7,6 +7,9 @@ of Python), and compiled on the fly. MrHooker will take care of setting up the
 environment, initializing Python in the child process, and cleaning up
 afterwards.
 
+MrHooker is currently only known to work on Linux. Feel free to send pull 
+requests for additional platform support (presumably in src/common.c).
+
 
 Installation
 ------------
