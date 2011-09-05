@@ -17,6 +17,14 @@ Installation
     pip install mrhooker
 
 
+Note: Pip doesn't seem to be honoring the "requires=cython" in setup.py. Until
+I figure out why, you'll need to also run:
+
+    pip install cython
+
+(If you don't, expect to see "ImportError: No module named pyximport".)
+
+
 Usage
 -----
 
