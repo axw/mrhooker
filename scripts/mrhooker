@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2011 Andrew Wilkins <axwalk@gmail.com>
+# 
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+
+import mrhooker
+
+try:
+    import ConfigParser as configparser
+except ImportError:
+    import configparser
+import optparse
+import os
+
+
+def _get_option(parser, module, option, type_=str):
+    method = {
+        str: parser.get,
+        int: parser.getint,
+        float: parser.getfloat,
+        bool: parser.getboolean
+    }[type_]
+    if parser.has_option(module, option):
+        return method(module, option)
+    return method("default", option)
+
+
+def _parse_args():
+    # Now read command-line arguments.
+    parser = optparse.OptionParser(
+        usage="%prog [options] <script.pyx> <command> [command-args]",
+        version="%prog " + str(mrhooker.__version__))
+    parser.add_option("--build-dir", dest="build_dir")
+    parser.add_option("-v", "--verbose", action="store_true", dest="verbose")
+    options, args = parser.parse_args()
+    if len(args) < 2:
+        parser.error("missing positional arguments")
+
+    # Convert the script name to the module name that Cython will generate. We
+    # will use this for config lookup.
+    if not os.path.exists(args[0]):
+        parser.error("Script file does not exist: %s" % args[0])
+    module_name = os.path.splitext(os.path.basename(args[0]))[0]
+
+    # Read in the user config, if it exists.
+    defaults = {"build_dir": None, "verbose": False, "module": module_name}
+    config_path = os.path.expanduser("~/.mrhooker/mrhooker.config")
+    config_parser = configparser.SafeConfigParser(defaults)
+    config_parser.read(config_path)
+
+    # For unspecified options, check they're specified in the configuration
+    # file, under either the module-name section or the 'default' section.
+    if options.build_dir is None:
+        build_dir = _get_option(config_parser, module_name, "build_dir")
+        if build_dir is not None:
+            options.build_dir = os.path.expanduser(build_dir)
+    if options.verbose is None:
+        options.verbose = _get_option(config_parser, module_name, "verbose")
+
+    if options.verbose:
+        if os.path.exists(config_path):
+            print "Processed configuration file:", config_path
+        else:
+            print "Skipped missing configuration file:", config_path
+
+    return options, args
+
+
+if __name__ == "__main__":
+    import sys
+    options, args = _parse_args()
+    sys.exit(mrhooker.run(args[0], args[1:],
+                          build_dir=options.build_dir,
+                          verbose=options.verbose))
+
