@@ -42,7 +42,8 @@ def _get_option(parser, module, option, type_=str):
     }[type_]
     if parser.has_option(module, option):
         return method(module, option)
-    return method("default", option)
+    if parser.has_option("default", option):
+        return method("default", option)
 
 
 def _parse_args():
