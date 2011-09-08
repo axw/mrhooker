@@ -53,6 +53,7 @@ def _parse_args():
         version="%prog " + str(mrhooker.__version__))
     parser.add_option("--build-dir", dest="build_dir")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose")
+    parser.add_option("-I", action="append", dest="include_dirs")
     options, args = parser.parse_args()
     if len(args) < 2:
         parser.error("missing positional arguments")
@@ -71,12 +72,16 @@ def _parse_args():
 
     # For unspecified options, check they're specified in the configuration
     # file, under either the module-name section or the 'default' section.
+    #
+    # TODO maybe make this dynamic - just look for all command line arguments
+    #      in the config file?
+    get_option = lambda key: _get_option(config_parser, module_name, key)
     if options.build_dir is None:
-        build_dir = _get_option(config_parser, module_name, "build_dir")
+        build_dir = get_option("build_dir")
         if build_dir is not None:
             options.build_dir = os.path.expanduser(build_dir)
     if options.verbose is None:
-        options.verbose = _get_option(config_parser, module_name, "verbose")
+        options.verbose = get_option("verbose")
 
     if options.verbose:
         if os.path.exists(config_path):
@@ -92,5 +97,6 @@ if __name__ == "__main__":
     options, args = _parse_args()
     sys.exit(mrhooker.run(args[0], args[1:],
                           build_dir=options.build_dir,
+                          include_dirs=options.include_dirs,
                           verbose=options.verbose))
 

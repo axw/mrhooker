@@ -29,7 +29,10 @@ import os
 import sys
 
 
-def run(script, args, build_dir=None, verbose=False):
+def run(script, args,
+        build_dir=None,
+        include_dirs=None,
+        verbose=False):
     """
     The main MrHooker entry function.
 
@@ -39,6 +42,8 @@ def run(script, args, build_dir=None, verbose=False):
                     stored. If this is None, then the library will be built in
                     a temporary directory and discarded at exit. Otherwise, the
                     directory will keep the build directories.
+    @param include_dirs List of include directories to search for Pyrex header
+                        files (.pxd) and C header files.
     """
 
     if verbose:
@@ -48,6 +53,7 @@ def run(script, args, build_dir=None, verbose=False):
             print "Build directory:", build_dir, "(temporary directory)"
         else:
             print "Build directory:", build_dir
+        print "Include directories:", include_dirs
 
     # Locate libpython, in the likely event that the child process does not
     # load Python itself.
@@ -68,16 +74,28 @@ def run(script, args, build_dir=None, verbose=False):
 
     try:
         from pyximport import pyxbuild
+        from Cython.Distutils.extension import Extension
+
+        # Get the module name from the script file.
+        module_name = os.path.splitext(os.path.basename(script))[0]
+
+        # Make sure the include directories are absolute, since the extension
+        # may be built in another directory.
+        if include_dirs:
+            include_dirs = map(os.path.abspath, include_dirs)
+
+        # Create and build an Extension.
+        ext = Extension(module_name, [script], include_dirs=include_dirs)
         out_fname = pyxbuild.pyx_to_dll(
-            script, build_in_temp=True, pyxbuild_dir=build_dir)
+            script, ext, build_in_temp=True, pyxbuild_dir=build_dir)
 
         env = os.environ.copy()
         env["LD_PRELOAD"] = " ".join([libpython, out_fname, _init_preload])
-        env["MRHOOKER_MODULE"] = os.path.splitext(os.path.basename(script))[0]
+        env["MRHOOKER_MODULE"] = module_name
         if verbose:
             print "Executing command with:\n" + \
                   "    LD_PRELOAD      =", env["LD_PRELOAD"] + "\n" + \
-                  "    MRHOOKER_MODULE =", env["MRHOOKER_MODULE"] + "\n"
+                  "    MRHOOKER_MODULE =", module_name + "\n"
 
         import subprocess
         rc = subprocess.call(args, env=env)
